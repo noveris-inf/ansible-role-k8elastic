@@ -1,0 +1,20 @@
+---
+
+elastic_namespace: "{{ kubernetes_namespace | default('default') }}"
+elastic_config_dir: "{{ kubernetes_namespace_dir }}/elastic"
+elastic_replicas: 3
+elastic_tolerate_master: false
+#elastic_cert_file:
+#elastic_key_file:
+elastic_cluster_name: "elastic"
+elastic_seed_hosts: "elastic-ss-0.elastic-svc,elastic-ss-1.elastic-svc,elastic-ss-2.elastic-svc"
+elastic_initial_master_nodes: "elastic-ss-0,elastic-ss-1,elastic-ss-2"
+#elastic_pass_fileadmin:
+#elastic_pass_filekibana:
+#elastic_pass_filewriter:
+elastic_image_ref: "docker.elastic.co/elasticsearch/elasticsearch:7.9.0-amd64"
+elastic_storageclass: "local-sc"
+elastic_storagesize: "10Gi"
+elastic_heap_size: "1g"
+
+...

@@ -1,0 +1,134 @@
+---
+apiVersion: v1
+data:
+  users: {{ elastic_users_data['content'] }}
+  users_roles: {{ elastic_users_roles_data['content'] }}
+kind: Secret
+metadata:
+  name: elastic-users
+  namespace: {{ elastic_namespace }}
+  labels:
+    app: elastic-app
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elastic-svc
+  namespace: {{ elastic_namespace }}
+  labels:
+    app: elastic-app
+spec:
+  selector:
+    app: elastic-app
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 9200
+      targetPort: 9200
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: {{ elastic_namespace }}
+  name: elastic-ss
+  labels:
+    app: elastic-app
+spec:
+  serviceName: "elastic-svc"
+  replicas: {{ elastic_replicas }}
+  selector:
+    matchLabels:
+      app: elastic-app
+  template:
+    metadata:
+      annotations:
+        triggerHash: "{{ trigger_sha_sum['stat']['checksum'] }}"
+      namespace: {{ elastic_namespace }}
+      labels:
+        app: elastic-app
+    spec:
+      tolerations:
+{% if elastic_tolerate_master %}
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+{% endif %}
+      volumes:
+        - name: elastic-cert
+          secret:
+            secretName: elastic-cert
+        - name: elastic-users
+          secret:
+            secretName: elastic-users
+      containers:
+        - name: elastic
+          image: {{ elastic_image_ref }}
+          env:
+            - name: cluster.name
+              value: "{{ elastic_cluster_name }}"
+            - name: cluster.initial_master_nodes
+              value: "{{ elastic_initial_master_nodes }}"
+            - name: discovery.seed_hosts
+              value: "{{ elastic_seed_hosts }}"
+            - name: transport.port
+              value: "9300"
+            - name: transport.host
+              value: "0.0.0.0"
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-pass-fileadmin
+                  key: pass
+            - name: xpack.security.enabled
+              value: "true"
+            - name: xpack.security.transport.ssl.enabled
+              value: "true"
+            - name: xpack.security.transport.ssl.verification_mode
+              value: "certificate"
+            - name: xpack.security.transport.ssl.key
+              value: /usr/share/elasticsearch/config/certs/elastic.key
+            - name: xpack.security.transport.ssl.certificate
+              value: /usr/share/elasticsearch/config/certs/elastic.crt
+            - name: xpack.security.transport.ssl.certificate_authorities
+              value: /usr/share/elasticsearch/config/certs/ca.crt
+            - name: xpack.security.http.ssl.enabled
+              value: "true"
+            - name: xpack.security.http.ssl.key
+              value: /usr/share/elasticsearch/config/certs/elastic.key
+            - name: xpack.security.http.ssl.certificate
+              value: /usr/share/elasticsearch/config/certs/elastic.crt
+            - name: xpack.security.http.ssl.certificate_authorities
+              value: /usr/share/elasticsearch/config/certs/ca.crt
+            - name: xpack.security.http.ssl.client_authentication
+              value: optional
+            - name: ES_JAVA_OPTS
+              value: "-Xms{{ elastic_heap_size }} -Xmx{{ elastic_heap_size }}"
+          ports:
+            - containerPort: 9200
+          volumeMounts:
+            - name: elastic-pvc
+              mountPath: /usr/share/elasticsearch/data
+            - name: elastic-cert
+              mountPath: /usr/share/elasticsearch/config/certs
+              readOnly: true
+            - name: elastic-users
+              mountPath: /usr/share/elasticsearch/config/users
+              readOnly: true
+              subPath: users
+            - name: elastic-users
+              mountPath: /usr/share/elasticsearch/config/users_roles
+              readOnly: true
+              subPath: users_roles
+  volumeClaimTemplates:
+    - metadata:
+        name: elastic-pvc
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "{{ elastic_storageclass }}"
+        resources:
+          requests:
+            storage: {{ elastic_storagesize }}
+        selector:
+          matchLabels:
+            app: elastic-app

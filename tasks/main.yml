@@ -1,0 +1,107 @@
+---
+
+- name: Create elastic config directory
+  command: "mkdir -p {{ elastic_config_dir }}"
+
+- name: elastic location
+  file:
+    state: directory
+    path: "{{ elastic_config_dir }}"
+    owner: "root"
+    group: "root"
+    mode: 0755
+
+- name: Read elastic cert
+  slurp:
+    src: "{{ elastic_cert_file }}"
+  register: elastic_cert_data
+
+- name: Read elastic key
+  slurp:
+    src: "{{ elastic_key_file }}"
+  register: elastic_key_data
+
+- name: Read CA file
+  slurp:
+    src: "{{ elastic_ca_file }}"
+  register: elastic_ca_data
+
+- name: Elastic auth directory
+  file:
+    path: "{{ elastic_config_dir }}/esusers"
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+
+- name: Host auth files
+  file:
+    path: "{{ item }}"
+    state: touch
+    owner: "1000"
+    group: "1000"
+    mode: 0660
+  loop:
+    - "{{ elastic_config_dir }}/esusers/users"
+    - "{{ elastic_config_dir }}/esusers/users_roles"
+
+- name: Update fileadmin user password
+  shell: >
+    docker run -v {{ elastic_config_dir }}/esusers/:/usr/share/elasticsearch/config/
+    docker.elastic.co/elasticsearch/elasticsearch:7.9.0-amd64 bash -c
+    '/usr/share/elasticsearch/bin/elasticsearch-users useradd fileadmin -p {{ elastic_pass_fileadmin }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users passwd fileadmin -p {{ elastic_pass_fileadmin }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users roles fileadmin -a superuser'
+
+- name: Update filekibana user password
+  shell: >
+    docker run -v {{ elastic_config_dir }}/esusers/:/usr/share/elasticsearch/config/
+    docker.elastic.co/elasticsearch/elasticsearch:7.9.0-amd64 bash -c
+    '/usr/share/elasticsearch/bin/elasticsearch-users useradd filekibana -p {{ elastic_pass_filekibana }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users passwd filekibana -p {{ elastic_pass_filekibana }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users roles filekibana -a superuser'
+
+- name: Update filewriter user password
+  shell: >
+    docker run -v {{ elastic_config_dir }}/esusers/:/usr/share/elasticsearch/config/
+    docker.elastic.co/elasticsearch/elasticsearch:7.9.0-amd64 bash -c
+    '/usr/share/elasticsearch/bin/elasticsearch-users useradd filewriter -p {{ elastic_pass_filewriter }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users passwd filewriter -p {{ elastic_pass_filewriter }} ;
+    /usr/share/elasticsearch/bin/elasticsearch-users roles filewriter -a superuser'
+
+- name: Read elastic users
+  slurp:
+    src: "{{ elastic_config_dir }}/esusers/users"
+  register: elastic_users_data
+
+- name: Read elastic users_roles
+  slurp:
+    src: "{{ elastic_config_dir }}/esusers/users_roles"
+  register: elastic_users_roles_data
+
+- name: Copy elastic triggers
+  template:
+    src: elastic_triggers.yml.j2
+    dest: "{{ elastic_config_dir }}/elastic_triggers.yml"
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Get trigger SHA sum
+  stat:
+    checksum_algorithm: sha256
+    path: "{{ elastic_config_dir }}/elastic_triggers.yml"
+  register: trigger_sha_sum
+
+- name: Copy elastic config
+  template:
+    src: elastic.yml.j2
+    dest: "{{ elastic_config_dir }}/elastic.yml"
+    owner: root
+    group: root
+    mode: 0640
+
+- name: Apply elastic resources
+  command: "kubectl apply -f {{ elastic_config_dir }}/elastic_triggers.yml -f {{ elastic_config_dir }}/elastic.yml"
+
+...
