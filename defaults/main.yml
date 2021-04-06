@@ -12,7 +12,7 @@ elastic_initial_master_nodes: "elastic-ss-0,elastic-ss-1,elastic-ss-2"
 #elastic_pass_fileadmin:
 #elastic_pass_filekibana:
 #elastic_pass_filewriter:
-elastic_image_ref: "docker.elastic.co/elasticsearch/elasticsearch:7.9.0-amd64"
+elastic_image_ref: "docker.elastic.co/elasticsearch/elasticsearch:7.12.0-amd64"
 elastic_storageclass: "local-sc"
 elastic_storagesize: "10Gi"
 elastic_heap_size: "1g"
