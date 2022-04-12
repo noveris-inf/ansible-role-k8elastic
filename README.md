@@ -1,3 +1,3 @@
-# ansible-role-k8elastic
+# ansible-role-kube-elastic
 
-[![Latest](https://github.com/noveris-inf/ansible-role-k8elastic/workflows/Latest/badge.svg)](https://github.com/noveris-inf/ansible-role-k8elastic/actions?query=workflow%3ALatest) [![Versioned](https://github.com/noveris-inf/ansible-role-k8elastic/workflows/Versioned/badge.svg)](https://github.com/noveris-inf/ansible-role-k8elastic/actions?query=workflow%3AVersioned)
+[![latest](https://github.com/archmachina/ansible-role-kube-elastic/workflows/latest/badge.svg)](https://github.com/archmachina/ansible-role-kube-elastic/actions?query=workflow%3Alatest)
